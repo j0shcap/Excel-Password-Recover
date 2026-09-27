@@ -1,8 +1,8 @@
 import time
 from random import randint
 import msoffcrypto
+import msoffcrypto.exceptions
 import io
-import pandas as pd
 from manual_wordlist import MY_WORDLIST
 
 class Cracker:
@@ -32,23 +32,26 @@ class Cracker:
         self.end()
 
     def decrypt(self, password) -> bool:
+        # verify_password/verify_integrity make msoffcrypto reject wrong
+        # passwords instead of "decrypting" garbage and reporting success (#1).
         try:
             decrypted = io.BytesIO()
             with open(self.__filename, "rb") as f:
                 file = msoffcrypto.OfficeFile(f)
-                file.load_key(password=password) 
-                file.decrypt(decrypted)
+                file.load_key(password=password, verify_password=True)
+                file.decrypt(decrypted, verify_integrity=True)
             return True
-        except:
+        except msoffcrypto.exceptions.DecryptionError:
             return False
 
     def read_decrypted_file(self, correct_password) -> None:
         """Prints locked file information in the terminal."""
+        import pandas as pd
         decrypted = io.BytesIO()
         with open(self.__filename, "rb") as f:
             file = msoffcrypto.OfficeFile(f)
-            file.load_key(password=correct_password) 
-            file.decrypt(decrypted)
+            file.load_key(password=correct_password, verify_password=True)
+            file.decrypt(decrypted, verify_integrity=True)
         df = pd.read_excel(decrypted)
         print(df)
 
